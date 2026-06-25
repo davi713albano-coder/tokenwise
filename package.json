@@ -1,0 +1,44 @@
+{
+    "version":  "0.1.0",
+    "license":  "MIT",
+    "files":  [
+                  "dist/"
+              ],
+    "dependencies":  {
+                         "cli-table3":  "^0.6.5",
+                         "js-tiktoken":  "^1.0.19",
+                         "glob":  "^10.4.5",
+                         "chalk":  "^5.3.0",
+                         "commander":  "^12.1.0",
+                         "yaml":  "^2.6.0",
+                         "sql.js":  "^1.11.0"
+                     },
+    "name":  "tokenwise",
+    "type":  "module",
+    "description":  "Find out where your AI coding agent burns tokens",
+    "engines":  {
+                    "node":  "\u003e=18.0.0"
+                },
+    "keywords":  [
+                     "claude-code",
+                     "opencode",
+                     "token-optimization",
+                     "ai-agents",
+                     "context-window",
+                     "prompt-caching"
+                 ],
+    "scripts":  {
+                    "lint":  "tsc --noEmit",
+                    "build":  "tsc",
+                    "test":  "vitest run"
+                },
+    "devDependencies":  {
+                            "typescript":  "^5.7.0",
+                            "@types/node":  "^22.10.0",
+                            "vitest":  "^2.1.0"
+                        },
+    "main":  "dist/cli.js",
+    "bin":  {
+                "tokenwise":  "./dist/cli.js"
+            }
+}

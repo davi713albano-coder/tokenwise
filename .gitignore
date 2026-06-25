@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.bak
+*.tgz
+.DS_Store
+Thumbs.db
+*.map
+!dist/**/*.js
