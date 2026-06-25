@@ -16,8 +16,10 @@ export interface ScanComponent {
   estCost: number;
 }
 
+import { AGENT_LABELS } from "./types.js";
+
 export interface ScanResult {
-  source: "claude-code" | "opencode";
+  source: string;
   sessionId: string;
   sessionDate: string;
   model: string;
@@ -43,7 +45,7 @@ export function formatScanTable(result: ScanResult): string {
   );
   lines.push("");
 
-  lines.push(`  Source:     ${chalk.white(result.source)}`);
+  lines.push(`  Source:     ${chalk.white(AGENT_LABELS[result.source] || result.source)}`);
   lines.push(`  Session:   ${chalk.white(result.sessionId)}`);
   lines.push(`  Date:      ${chalk.white(result.sessionDate)}`);
   lines.push(`  Model:     ${chalk.white(result.model)}`);

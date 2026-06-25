@@ -101,7 +101,7 @@ Creates `.bak` backups. Never deletes content. Only safe transforms:
 
 ### `tokenwise scan` — Analyze session token usage
 
-Reads your latest Claude Code / OpenCode session and shows where tokens went:
+Reads your latest AI coding agent session (Claude Code, OpenCode, Aider, Cline, Codex CLI, Goose, Continue.dev) and shows where tokens went:
 
 ```
 ┌─────────────────────────┬─────────┬────────────┬───────────┐
@@ -129,7 +129,13 @@ Reads your latest Claude Code / OpenCode session and shows where tokens went:
 **Key metrics:**
 - **Cache hit rate** — are your prompts cache-friendly? (target: >50%)
 - **Token hogs** — top 3 consumers with actionable tips
-- **Cost projection** — per-session and monthly at Sonnet/Haiku/Opus pricing
+- **Cost projection** — per-session and monthly across 7 pricing models
+
+Auto-detect which agents you use:
+
+```bash
+tokenwise scan --detect
+```
 
 ---
 
@@ -137,11 +143,21 @@ Reads your latest Claude Code / OpenCode session and shows where tokens went:
 
 ## Supported agents
 
-| Agent | Audit | Scan | Config |
+| Agent | Audit instruction files | Scan sessions | Config |
 |---|---|---|---|
 | **Claude Code** | CLAUDE.md, .claude/rules/ | ~/.claude/projects/ JSONL | Anthropic pricing |
-| **OpenCode** | AGENTS.md, .opencode/ | opencode.db SQLite | Anthropic pricing |
-| **Cursor** | .cursorrules | — | — |
+| **OpenCode** | AGENTS.md, .opencode/agents/ | opencode.db SQLite | Anthropic pricing |
+| **Cursor** | .cursorrules, .cursor/rules/ | — | — |
+| **Aider** | .aider.conf.yml | .aider.chat.history.md | OpenAI pricing |
+| **Cline** | .clinerules/, .clinerules | ~/.cline/data/sessions/ JSON | OpenAI pricing |
+| **Codex CLI** | .codex/ | ~/.local/share/codex/sessions/ | OpenAI pricing |
+| **Goose** | .goosehints | sessions.db SQLite | Anthropic pricing |
+| **Continue.dev** | .continue/config.*, .continue/dev/ | .continue/sessions/ JSON | OpenAI pricing |
+| **Windsurf** | .windsurfrules | — | — |
+| **Augment** | .augment/rules/ | — (detect only) | — |
+| **Kilocode** | .kilocode/rules/ | — | — |
+
+**Global instruction files** are also scanned from your home directory (`~/.claude/CLAUDE.md`, `~/.cursorrules`, `~/.clinerules`, `~/.goosehints`, `~/.windsurfrules`, `~/.aider.conf.yml`, `~/.config/opencode/AGENTS.md`).
 
 ---
 
@@ -156,7 +172,7 @@ Options:
   --dir <path>     Project directory (default: cwd)
   --fix            Auto-fix safe issues (creates .bak backups)
   --json           Raw JSON output (for scripts/piping)
-  --model <model>  Cost model: sonnet (default), haiku, opus
+  --model <model>  Cost model: sonnet (default), haiku, opus, gpt-4o, gpt-4.1, o3, o4-mini
   --verbose        Show per-flag details with line numbers
 ```
 
@@ -165,9 +181,11 @@ Options:
 ```
 Options:
   --session <path>  Path to specific session file
-  --db <path>       Path to OpenCode database
+  --db <path>       Path to agent database (OpenCode, Goose)
+  --agent <name>    Scan a specific agent: claude-code, opencode, aider, cline, codex-cli, goose, continue
+  --detect          List detected agents and exit
   --json            Raw JSON output (for scripts/piping)
-  --model <model>   Cost model: sonnet (default), haiku, opus
+  --model <model>   Cost model: sonnet (default), haiku, opus, gpt-4o, gpt-4.1, o3, o4-mini
 ```
 
 ---
@@ -178,7 +196,18 @@ Options:
 
 - **Token counting**: `js-tiktoken` with `o200k_base` encoding (~10% variance from Anthropic's proprietary tokenizer — sufficient for budget estimation)
 - **Similarity detection**: Shingling (k=5) + Jaccard coefficient — no LLM, no API, no data leaves your machine
-- **Cost estimation**: Hardcoded pricing (Sonnet $3/$15/M, Haiku $0.8/$4/M, Opus $15/$75/M)
+- **Cost estimation**: Hardcoded pricing for 7 models:
+
+| Model | Input $/M | Output $/M | Cache Read $/M | Cache Write $/M |
+|---|---|---|---|---|
+| sonnet | 3.00 | 15.00 | 0.30 | 3.75 |
+| haiku | 0.80 | 4.00 | 0.08 | 1.00 |
+| opus | 15.00 | 75.00 | 1.50 | 18.75 |
+| gpt-4o | 2.50 | 10.00 | 1.25 | 2.50 |
+| gpt-4.1 | 2.00 | 8.00 | 0.50 | 2.00 |
+| o3 | 10.00 | 40.00 | 2.50 | 10.00 |
+| o4-mini | 1.50 | 6.00 | 0.375 | 1.50 |
+
 - **SQLite reading**: `sql.js` (pure JS/WASM, zero native dependencies)
 - **All local, all offline** — zero API calls, zero LLM inference
 
@@ -292,7 +321,7 @@ $ tokenwise audit --json | jq '.files[0].flags'
 
 ## Roadmap
 
-- [ ] **v0.2** — Cursor rules support, `.cursorrules` audit
+- [x] **v0.2** — Multi-agent support (Aider, Cline, Codex CLI, Goose, Continue.dev, Windsurf, Augment, Kilocode), OpenAI pricing models (gpt-4o, gpt-4.1, o3, o4-mini), agent auto-detection (`--detect`)
 - [ ] **v0.3** — Pre-commit hook integration (`tokenwise audit --ci`)
 - [ ] **v0.4** — Live watch mode with cost ticker
 - [ ] **v0.5** — MCP server for agent self-audit
