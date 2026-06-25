@@ -30,7 +30,8 @@
     "scripts":  {
                     "lint":  "tsc --noEmit",
                     "build":  "tsc",
-                    "test":  "vitest run"
+                    "test":  "vitest run",
+                    "prepublishOnly":  "npm run build"
                 },
     "devDependencies":  {
                             "typescript":  "^5.7.0",
@@ -40,5 +41,13 @@
     "main":  "dist/cli.js",
     "bin":  {
                 "tokenwise":  "./dist/cli.js"
-            }
+            },
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/davi713albano-coder/tokenwise.git"
+                   },
+    "bugs":  {
+                 "url":  "https://github.com/davi713albano-coder/tokenwise/issues"
+             },
+    "homepage":  "https://github.com/davi713albano-coder/tokenwise#readme"
 }
