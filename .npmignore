@@ -1,0 +1,9 @@
+tests/
+.github/
+DESIGN.md
+PLAN.md
+SECURITY.md
+CONTRIBUTING.md
+tsconfig.json
+vitest.config.ts
+.gitignore
