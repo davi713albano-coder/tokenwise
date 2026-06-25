@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import Table from "cli-table3";
-import type { AuditResult, FileAuditResult, AuditFlag } from "./types.js";
+import type { AuditResult, FileAuditResult, AuditFlag, Severity } from "./types.js";
 import {
   formatNumber,
   formatPercent,
@@ -9,14 +9,29 @@ import {
 } from "../shared/format.js";
 import { getPricing } from "../shared/pricing.js";
 
-function severityColor(severity: "high" | "medium" | "low") {
+function severityColor(severity: Severity) {
   switch (severity) {
+    case "critical":
+      return chalk.bgRed.white;
     case "high":
       return chalk.red;
     case "medium":
       return chalk.yellow;
     case "low":
       return chalk.gray;
+  }
+}
+
+function severityLabel(severity: Severity): string {
+  switch (severity) {
+    case "critical":
+      return chalk.bgRed.white(" CRITICAL ");
+    case "high":
+      return chalk.red("HIGH");
+    case "medium":
+      return chalk.yellow("MED");
+    case "low":
+      return chalk.gray("LOW");
   }
 }
 
@@ -44,6 +59,7 @@ export function formatAuditTable(result: AuditResult): string {
 
   const table = new Table({
     head: [
+      chalk.gray("Severity"),
       chalk.gray("File"),
       chalk.gray("Tokens"),
       chalk.gray("Lines"),
@@ -51,7 +67,7 @@ export function formatAuditTable(result: AuditResult): string {
       chalk.gray("Flags"),
       chalk.gray("Savings"),
     ],
-    colAligns: ["left", "right", "right", "center", "left", "right"],
+    colAligns: ["center", "left", "right", "right", "center", "left", "right"],
     style: { head: [], border: ["gray"], "padding-left": 1, "padding-right": 1 },
   });
 
@@ -67,6 +83,7 @@ export function formatAuditTable(result: AuditResult): string {
         ? chalk.green(`-${formatNumber(file.reducibleTokens)}`)
         : "-";
     table.push([
+      severityLabel(file.severityScore),
       chalk.white(file.relPath),
       formatNumber(file.tokens),
       formatNumber(file.lines),
@@ -117,6 +134,17 @@ export function formatAuditTable(result: AuditResult): string {
     lines.push("");
   }
 
+  if (result.quickWin) {
+    lines.push(chalk.bold.yellow("  Quick win"));
+    lines.push(
+      `  ${chalk.yellow("\u2605")} ${result.quickWin.file}: ${result.quickWin.message}`
+    );
+    lines.push(
+      `  Saves ${chalk.green(formatNumber(result.quickWin.savings))} tokens — ${chalk.green(formatCost(getPricing(result.model).inputPerMillion * result.quickWin.savings / 1_000_000 * 50 * 22))}/month`
+    );
+    lines.push("");
+  }
+
   return lines.join("\n");
 }
 
@@ -131,7 +159,7 @@ export function formatAuditFlags(result: AuditResult, verbose: boolean): string 
     lines.push(chalk.underline(file.relPath));
     for (const flag of file.flags) {
       const icon = severityColor(flag.severity)(
-        flag.severity === "high" ? "!" : flag.severity === "medium" ? "~" : "-"
+        flag.severity === "critical" ? "!!" : flag.severity === "high" ? "!" : flag.severity === "medium" ? "~" : "-"
       );
       lines.push(
         `  ${icon} [${flag.severity}] ${flag.id}: ${flag.message}`

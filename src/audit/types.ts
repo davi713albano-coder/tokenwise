@@ -1,6 +1,8 @@
+export type Severity = "low" | "medium" | "high" | "critical";
+
 export interface AuditFlag {
   id: string;
-  severity: "high" | "medium" | "low";
+  severity: Severity;
   message: string;
   line?: number;
   savings?: number;
@@ -15,6 +17,8 @@ export interface FileAuditResult {
   reducibleTokens: number;
   loadFrequency: "every_message" | "conditional" | "on_demand";
   content: string;
+  severityScore: Severity;
+  quickWin: boolean;
 }
 
 export interface AuditResult {
@@ -25,6 +29,7 @@ export interface AuditResult {
   monthlyCostEstimate: number;
   monthlySavingsEstimate: number;
   model: string;
+  quickWin: { file: string; message: string; savings: number } | null;
 }
 
 export interface ScannerFile {
