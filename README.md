@@ -8,14 +8,15 @@
 
 Cross-agent token waste analytics + automated fixes.
 
+[![npm](https://img.shields.io/npm/v/@davizin713/tokenwise)](https://www.npmjs.com/package/@davizin713/tokenwise)
 [![npm version](https://img.shields.io/npm/v/tokenwise?color=brightgreen&label=npm)](https://www.npmjs.com/package/tokenwise)
 [![install size](https://packagephobia.now.sh/badge?p=tokenwise)](https://packagephobia.now.sh/result?p=tokenwise)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![node](https://img.shields.io/node/v/tokenwise?label=node%20%3E%3D18)](https://nodejs.org/)
 
 ```bash
-npx tokenwise audit    # trim instruction files
-npx tokenwise scan     # analyze session logs
+npx @davizin713/tokenwise audit    # trim instruction files
+npx @davizin713/tokenwise scan     # analyze session logs
 ```
 
 </div>
@@ -44,8 +45,8 @@ You're paying **$500+/month** in AI coding agent API costs. Half those tokens ar
 
 ```bash
 # No install needed
-npx tokenwise audit
-npx tokenwise scan
+npx @davizin713/tokenwise audit
+npx @davizin713/tokenwise scan
 
 # Or install globally
 npm i -g tokenwise
