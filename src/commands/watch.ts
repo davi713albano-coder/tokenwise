@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { getPricing, estimateMonthly } from "../shared/pricing.js";
 import { formatNumber, formatCost, formatPercent } from "../shared/format.js";
 import { findClaudeCodeSessions, parseSession, analyzeTokens } from "../scan/claude-code.js";

@@ -4,10 +4,13 @@ import { homedir } from "node:os";
 import { countTokens } from "../shared/counter.js";
 import type { UniversalTokenBreakdown } from "./types.js";
 
-const XDG_DATA_HOME = process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
-
 export function findCodexSessions(): string | null {
+  const all = findAllCodexSessions();
+  return all.length > 0 ? all[0] : null;
+}
+
+export function findAllCodexSessions(): string[] {
+  const XDG_DATA_HOME = process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
   const candidates = [
     join(XDG_DATA_HOME, "codex", "sessions"),
     join(
@@ -26,22 +29,23 @@ export function findCodexSessions(): string | null {
   for (const dir of candidates) {
     if (existsSync(dir) && statSync(dir).isDirectory()) {
       try {
-        const files = readdirSync(dir, { recursive: true })
+        return readdirSync(dir, { recursive: true })
           .filter((f): f is string => {
             const full = join(dir, f.toString());
             try { return statSync(full).isFile(); } catch { return false; }
           })
           .filter((f) => f.endsWith(".json") || f.endsWith(".jsonl"))
           .map((f) => ({ name: f, path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
-          .sort((a, b) => b.mtime - a.mtime);
-        if (files.length > 0) return files[0].path;
+          .sort((a, b) => b.mtime - a.mtime)
+          .map((f) => f.path);
       } catch {}
     }
   }
-  return null;
+  return [];
 }
 
 export function findCodexConfig(): string | null {
+  const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
   const candidates = [
     join(XDG_CONFIG_HOME, "codex", "codex.json"),
     join(XDG_CONFIG_HOME, "codex", "config.json"),

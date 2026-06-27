@@ -147,7 +147,7 @@ export function auditContent(
       id: "excessive_emphasis",
       severity: "low",
       message: `${shoutyLines.length} lines with ALL-CAPS emphasis (NEVER/ALWAYS/MUST/CRITICAL). Modern models follow normal-tone instructions.`,
-      savings: countTokens(
+      savings: Math.max(0, countTokens(
         shoutyLines
           .map((l) =>
             l.replace(
@@ -156,7 +156,7 @@ export function auditContent(
             )
           )
           .join("\n")
-      ) - countTokens(shoutyLines.join("\n")),
+      ) - countTokens(shoutyLines.join("\n"))),
     });
   }
 

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { findInstructionFiles } from "../audit/scanner.js";
 import { auditContent } from "../audit/heuristics.js";
-import { getPricing, estimateMonthly } from "../shared/pricing.js";
+import { getPricing, estimateMonthly, estimateCost } from "../shared/pricing.js";
 import { countTokens } from "../shared/counter.js";
 import { formatNumber, formatCost, formatPercent } from "../shared/format.js";
 import { detectAgents } from "../scan/detector.js";
@@ -19,6 +19,7 @@ interface ReportData {
     tokens: number;
     flags: Array<{ id: string; severity: string; message: string; savings?: number }>;
     reducibleTokens: number;
+    loadFrequency: string;
   }>;
   totalTokens: number;
   reducibleTokens: number;
@@ -63,14 +64,18 @@ async function gatherReportData(projectDir: string, days: number, model: string)
       tokens: file.tokens,
       flags: flags.map((f) => ({ id: f.id, severity: f.severity, message: f.message, savings: f.savings })),
       reducibleTokens: fileReducible,
+      loadFrequency: file.loadFrequency,
     });
   }
 
   const alwaysLoaded = auditFiles
-    .filter((f) => f.reducibleTokens > 0)
+    .filter((f) => f.loadFrequency === "every_message")
     .reduce((s, f) => s + f.tokens, 0);
+  const alwaysLoadedReducible = auditFiles
+    .filter((f) => f.loadFrequency === "every_message")
+    .reduce((s, f) => s + f.reducibleTokens, 0);
   const perMsgCost = (alwaysLoaded * pricing.inputPerMillion) / 1_000_000;
-  const perMsgSavings = (reducibleTokens * pricing.inputPerMillion) / 1_000_000;
+  const perMsgSavings = (alwaysLoadedReducible * pricing.inputPerMillion) / 1_000_000;
 
   const topPatterns = Object.entries(patternCounts)
     .map(([pattern, data]) => ({ pattern, count: data.count, savings: data.savings }))
@@ -83,11 +88,17 @@ async function gatherReportData(projectDir: string, days: number, model: string)
     if (claudeSessions.length > 0) {
       const session = parseSession(claudeSessions[0]);
       const breakdown = analyzeTokens(session);
+      const costEstimate = estimateCost({
+        input: breakdown.totalInput,
+        output: breakdown.totalOutput,
+        cacheRead: breakdown.cacheRead,
+        cacheWrite: breakdown.cacheCreation,
+      }, model);
       sessionData = {
         inputTokens: breakdown.totalInput,
         outputTokens: breakdown.totalOutput,
         cacheRead: breakdown.cacheRead,
-        cost: breakdown.totalInput * pricing.inputPerMillion / 1_000_000 + breakdown.totalOutput * pricing.outputPerMillion / 1_000_000,
+        cost: costEstimate.totalCost,
       };
     }
   } catch {}

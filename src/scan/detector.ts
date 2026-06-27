@@ -70,6 +70,7 @@ export function detectAgents(projectDir?: string): DetectedAgent[] {
       label: "Goose",
       dataType: "database",
       paths: [
+        join(XDG_DATA_HOME, "goose", "sessions.db"),
         join(XDG_CONFIG_HOME, "goose", "sessions.db"),
         join(homedir(), ".local", "share", "goose", "sessions.db"),
       ],
@@ -88,8 +89,7 @@ export function detectAgents(projectDir?: string): DetectedAgent[] {
       label: "Augment",
       dataType: "history",
       paths: [
-        join(process.env.TEMP || "/tmp", "augment-log.txt"),
-        join(process.env.TMPDIR || "/tmp", "augment-log.txt"),
+        join(process.env.TEMP || process.env.TMPDIR || join(homedir(), "AppData", "Local", "Temp"), "augment-log.txt"),
       ],
     },
   ];

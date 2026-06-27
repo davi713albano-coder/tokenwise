@@ -7,7 +7,7 @@ export function formatPercent(n: number, decimals: number = 1): string {
 }
 
 export function formatCost(n: number): string {
-  if (n < 0.01) return "$0.00";
+  if (n < 0.005) return "$0.00";
   return `$${n.toFixed(2)}`;
 }
 

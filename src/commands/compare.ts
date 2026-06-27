@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { getPricing, estimateMonthly } from "../shared/pricing.js";
+import { getPricing, estimateMonthly, estimateCost } from "../shared/pricing.js";
 import { formatNumber, formatCost, formatPercent } from "../shared/format.js";
 import { findClaudeCodeSessions, parseSession, analyzeTokens } from "../scan/claude-code.js";
 import { findOpenCodeDb, getLatestSession, analyzeOpenCodeSession } from "../scan/opencode.js";
@@ -56,7 +56,8 @@ function formatSignedPercent(percent: number): string {
   return chalk.gray("0%");
 }
 
-async function getSessionData(path: string, agentOverride?: string): Promise<ComparisonData | null> {
+async function getSessionData(path: string, agentOverride?: string, model?: string): Promise<ComparisonData | null> {
+  const effectiveModel = model || "sonnet";
   const claudeSessions = findClaudeCodeSessions();
   const openCodeDb = findOpenCodeDb();
 
@@ -64,7 +65,7 @@ async function getSessionData(path: string, agentOverride?: string): Promise<Com
     try {
       const session = parseSession(path);
       const breakdown = analyzeTokens(session);
-      return breakdownToComparison(breakdown, "claude-code");
+      return breakdownToComparison(breakdown, "claude-code", effectiveModel);
     } catch { return null; }
   }
 
@@ -76,7 +77,7 @@ async function getSessionData(path: string, agentOverride?: string): Promise<Com
       if (!sessionInfo) return null;
       const breakdown = await analyzeOpenCodeSession(dbPath, sessionInfo.id);
       if (!breakdown) return null;
-      return breakdownToComparison(breakdown, "opencode");
+      return breakdownToComparison(breakdown, "opencode", effectiveModel);
     } catch { return null; }
   }
 
@@ -84,14 +85,14 @@ async function getSessionData(path: string, agentOverride?: string): Promise<Com
     if (claudeSessions.length > 0) {
       const session = parseSession(claudeSessions[0]);
       const breakdown = analyzeTokens(session);
-      return breakdownToComparison(breakdown, "claude-code");
+      return breakdownToComparison(breakdown, "claude-code", effectiveModel);
     }
     if (openCodeDb) {
       try {
         const sessionInfo = await getLatestSession(openCodeDb);
         if (sessionInfo) {
           const breakdown = await analyzeOpenCodeSession(openCodeDb, sessionInfo.id);
-          if (breakdown) return breakdownToComparison(breakdown, "opencode");
+          if (breakdown) return breakdownToComparison(breakdown, "opencode", effectiveModel);
         }
       } catch {}
     }
@@ -100,7 +101,7 @@ async function getSessionData(path: string, agentOverride?: string): Promise<Com
   return null;
 }
 
-function breakdownToComparison(breakdown: unknown, source: string): ComparisonData {
+function breakdownToComparison(breakdown: unknown, source: string, model: string): ComparisonData {
   const b = breakdown as { [k: string]: number };
   const cost = b["cost"] || 0;
   const totalInput = b["totalInput"] || 0;
@@ -110,7 +111,14 @@ function breakdownToComparison(breakdown: unknown, source: string): ComparisonDa
   const historyEstimate = b["historyEstimate"] || 0;
   const cacheHitRate = b["cacheHitRate"] || 0;
 
-  const computedCost = cost || (totalInput * 3 / 1_000_000 + totalOutput * 15 / 1_000_000);
+  const pricing = getPricing(model);
+  const costResult = estimateCost({
+    input: totalInput,
+    output: totalOutput,
+    cacheRead: cacheRead,
+    cacheWrite: b["cacheCreation"] || b["cacheWrite"] || 0,
+  }, model);
+  const computedCost = cost || costResult.totalCost;
 
   return {
     source,
@@ -125,23 +133,23 @@ function breakdownToComparison(breakdown: unknown, source: string): ComparisonDa
   };
 }
 
-async function getTwoLatestSessions(): Promise<[ComparisonData | null, ComparisonData | null]> {
+async function getTwoLatestSessions(model?: string): Promise<[ComparisonData | null, ComparisonData | null]> {
   const claudeSessions = findClaudeCodeSessions();
 
   if (claudeSessions.length >= 2) {
-    const before = await getSessionData(claudeSessions[1]);
-    const after = await getSessionData(claudeSessions[0]);
+    const before = await getSessionData(claudeSessions[1], undefined, model);
+    const after = await getSessionData(claudeSessions[0], undefined, model);
     if (before && after) return [before, after];
   }
 
   if (claudeSessions.length === 1) {
-    const after = await getSessionData(claudeSessions[0]);
+    const after = await getSessionData(claudeSessions[0], undefined, model);
     return [null, after];
   }
 
   const openCodeDb = findOpenCodeDb();
   if (openCodeDb) {
-    const after = await getSessionData(openCodeDb);
+    const after = await getSessionData(openCodeDb, undefined, model);
     return [null, after];
   }
 
@@ -176,12 +184,12 @@ export async function runCompare(options: {
   let afterData: ComparisonData | null = null;
 
   if (options.session1 && options.session2) {
-    beforeData = await getSessionData(options.session1);
-    afterData = await getSessionData(options.session2);
+    beforeData = await getSessionData(options.session1, undefined, options.model);
+    afterData = await getSessionData(options.session2, undefined, options.model);
   } else if (options.before && options.after) {
-    [beforeData, afterData] = await getTwoLatestSessions();
+    [beforeData, afterData] = await getTwoLatestSessions(options.model);
   } else {
-    [beforeData, afterData] = await getTwoLatestSessions();
+    [beforeData, afterData] = await getTwoLatestSessions(options.model);
   }
 
   if (!beforeData && !afterData) {

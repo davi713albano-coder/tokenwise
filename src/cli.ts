@@ -23,11 +23,11 @@ import {
   getLatestSession as getOpenCodeLatest,
   analyzeOpenCodeSession,
 } from "./scan/opencode.js";
-import { findAiderHistory, parseAiderHistory, analyzeAiderSession } from "./scan/aider.js";
-import { findClineSessions, parseClineSession, analyzeClineSession } from "./scan/cline.js";
-import { findCodexSessions, parseCodexSession, analyzeCodexSession } from "./scan/codex-cli.js";
-import { findGooseDb, getGooseLatestSession, analyzeGooseSession } from "./scan/goose.js";
-import { findContinueSessions, parseContinueSession, analyzeContinueSession } from "./scan/continue.js";
+import { findAiderHistory, findAllAiderHistory, parseAiderHistory, analyzeAiderSession } from "./scan/aider.js";
+import { findClineSessions, findAllClineSessions, parseClineSession, analyzeClineSession } from "./scan/cline.js";
+import { findCodexSessions, findAllCodexSessions, parseCodexSession, analyzeCodexSession } from "./scan/codex-cli.js";
+import { findGooseDb, getGooseLatestSession, getAllGooseSessions, analyzeGooseSession } from "./scan/goose.js";
+import { findContinueSessions, findAllContinueSessions, parseContinueSession, analyzeContinueSession } from "./scan/continue.js";
 import { detectAgents, getAvailableAgents } from "./scan/detector.js";
 import { AGENT_LABELS } from "./scan/types.js";
 import type { ScanResult, ScanComponent } from "./scan/reporter.js";
@@ -40,19 +40,22 @@ import { runHistory } from "./commands/history.js";
 import { runInit } from "./commands/init.js";
 
 function toUniversalBreakdown(breakdown: Record<string, unknown>): UniversalTokenBreakdown {
+  const cacheWrite = typeof breakdown.cacheWrite === "number" ? breakdown.cacheWrite
+    : typeof breakdown.cacheCreation === "number" ? breakdown.cacheCreation
+    : 0;
   return {
-    totalInput: (breakdown.totalInput as number) || 0,
-    totalOutput: (breakdown.totalOutput as number) || 0,
-    cacheRead: (breakdown.cacheRead as number) || 0,
-    cacheWrite: (breakdown.cacheWrite as number) || (breakdown.cacheCreation as number) || 0,
-    reasoning: (breakdown.reasoning as number) || 0,
-    messageCount: (breakdown.messageCount as number) || 0,
-    cacheHitRate: (breakdown.cacheHitRate as number) || 0,
-    cost: (breakdown.cost as number) || 0,
-    systemPromptEstimate: (breakdown.systemPromptEstimate as number) || 0,
-    toolOutputEstimate: (breakdown.toolOutputEstimate as number) || 0,
-    historyEstimate: (breakdown.historyEstimate as number) || 0,
-    codeReadEstimate: (breakdown.codeReadEstimate as number) || 0,
+    totalInput: typeof breakdown.totalInput === "number" ? breakdown.totalInput : 0,
+    totalOutput: typeof breakdown.totalOutput === "number" ? breakdown.totalOutput : 0,
+    cacheRead: typeof breakdown.cacheRead === "number" ? breakdown.cacheRead : 0,
+    cacheWrite,
+    reasoning: typeof breakdown.reasoning === "number" ? breakdown.reasoning : 0,
+    messageCount: typeof breakdown.messageCount === "number" ? breakdown.messageCount : 0,
+    cacheHitRate: typeof breakdown.cacheHitRate === "number" ? breakdown.cacheHitRate : 0,
+    cost: typeof breakdown.cost === "number" ? breakdown.cost : 0,
+    systemPromptEstimate: typeof breakdown.systemPromptEstimate === "number" ? breakdown.systemPromptEstimate : 0,
+    toolOutputEstimate: typeof breakdown.toolOutputEstimate === "number" ? breakdown.toolOutputEstimate : 0,
+    historyEstimate: typeof breakdown.historyEstimate === "number" ? breakdown.historyEstimate : 0,
+    codeReadEstimate: typeof breakdown.codeReadEstimate === "number" ? breakdown.codeReadEstimate : 0,
   };
 }
 
@@ -454,9 +457,13 @@ async function runScan(options: {
   }
 
   if (!targetAgent || targetAgent === "aider") {
-    const aiderHistoryPath = targetAgent === "aider" ? options.session : findAiderHistory(process.cwd());
-    if (aiderHistoryPath) {
+    const aiderPaths = options.all ? findAllAiderHistory(process.cwd()) : (targetAgent === "aider" && options.session ? [options.session] : (findAiderHistory(process.cwd()) ? [findAiderHistory(process.cwd())!] : []));
+    for (const aiderHistoryPath of aiderPaths) {
       try {
+        if (sinceDate) {
+          const { statSync: ss } = await import("node:fs");
+          try { if (ss(aiderHistoryPath).mtimeMs < sinceDate) continue; } catch { continue; }
+        }
         const messages = parseAiderHistory(aiderHistoryPath);
         const breakdown = analyzeAiderSession(messages);
         results.push(buildUniversalScanResult("aider", aiderHistoryPath.split(/[/\\]/).pop() || "unknown", breakdown, options.model, pricing));
@@ -467,9 +474,13 @@ async function runScan(options: {
   }
 
   if (!targetAgent || targetAgent === "cline") {
-    const clineSessionPath = targetAgent === "cline" ? options.session : findClineSessions();
-    if (clineSessionPath) {
+    const clinePaths = options.all ? findAllClineSessions() : (targetAgent === "cline" && options.session ? [options.session] : (findClineSessions() ? [findClineSessions()!] : []));
+    for (const clineSessionPath of clinePaths) {
       try {
+        if (sinceDate) {
+          const { statSync: ss } = await import("node:fs");
+          try { if (ss(clineSessionPath).mtimeMs < sinceDate) continue; } catch { continue; }
+        }
         const messages = parseClineSession(clineSessionPath);
         const breakdown = analyzeClineSession(messages);
         results.push(buildUniversalScanResult("cline", clineSessionPath.split(/[/\\]/).pop() || "unknown", breakdown, options.model, pricing));
@@ -480,9 +491,13 @@ async function runScan(options: {
   }
 
   if (!targetAgent || targetAgent === "codex-cli") {
-    const codexSessionPath = targetAgent === "codex-cli" ? options.session : findCodexSessions();
-    if (codexSessionPath) {
+    const codexPaths = options.all ? findAllCodexSessions() : (targetAgent === "codex-cli" && options.session ? [options.session] : (findCodexSessions() ? [findCodexSessions()!] : []));
+    for (const codexSessionPath of codexPaths) {
       try {
+        if (sinceDate) {
+          const { statSync: ss } = await import("node:fs");
+          try { if (ss(codexSessionPath).mtimeMs < sinceDate) continue; } catch { continue; }
+        }
         const messages = parseCodexSession(codexSessionPath);
         const breakdown = analyzeCodexSession(messages);
         results.push(buildUniversalScanResult("codex-cli", codexSessionPath.split(/[/\\]/).pop() || "unknown", breakdown, options.model, pricing));
@@ -496,11 +511,22 @@ async function runScan(options: {
     const gooseDbPath = targetAgent === "goose" ? options.db : findGooseDb();
     if (gooseDbPath) {
       try {
-        const sessionInfo = await getGooseLatestSession(gooseDbPath);
-        if (sessionInfo) {
-          const breakdown = await analyzeGooseSession(gooseDbPath, sessionInfo.id);
-          if (breakdown) {
-            results.push(buildUniversalScanResult("goose", sessionInfo.id, breakdown, options.model, pricing, sessionInfo.model, sessionInfo.timeCreated));
+        if (options.all) {
+          const allSessions = await getAllGooseSessions(gooseDbPath);
+          for (const sessionInfo of allSessions) {
+            if (sinceDate && sessionInfo.timeCreated < sinceDate) continue;
+            const breakdown = await analyzeGooseSession(gooseDbPath, sessionInfo.id);
+            if (breakdown) {
+              results.push(buildUniversalScanResult("goose", sessionInfo.id, breakdown, options.model, pricing, sessionInfo.model, sessionInfo.timeCreated));
+            }
+          }
+        } else {
+          const sessionInfo = await getGooseLatestSession(gooseDbPath);
+          if (sessionInfo && !(sinceDate && sessionInfo.timeCreated < sinceDate)) {
+            const breakdown = await analyzeGooseSession(gooseDbPath, sessionInfo.id);
+            if (breakdown) {
+              results.push(buildUniversalScanResult("goose", sessionInfo.id, breakdown, options.model, pricing, sessionInfo.model, sessionInfo.timeCreated));
+            }
           }
         }
       } catch (e) {
@@ -510,9 +536,13 @@ async function runScan(options: {
   }
 
   if (!targetAgent || targetAgent === "continue") {
-    const continueSessionPath = targetAgent === "continue" ? options.session : findContinueSessions();
-    if (continueSessionPath) {
+    const continuePaths = options.all ? findAllContinueSessions() : (targetAgent === "continue" && options.session ? [options.session] : (findContinueSessions() ? [findContinueSessions()!] : []));
+    for (const continueSessionPath of continuePaths) {
       try {
+        if (sinceDate) {
+          const { statSync: ss } = await import("node:fs");
+          try { if (ss(continueSessionPath).mtimeMs < sinceDate) continue; } catch { continue; }
+        }
         const messages = parseContinueSession(continueSessionPath);
         const breakdown = analyzeContinueSession(messages);
         results.push(buildUniversalScanResult("continue", continueSessionPath.split(/[/\\]/).pop() || "unknown", breakdown, options.model, pricing));

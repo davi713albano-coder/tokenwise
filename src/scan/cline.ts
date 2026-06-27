@@ -5,6 +5,11 @@ import { countTokens } from "../shared/counter.js";
 import type { UniversalTokenBreakdown } from "./types.js";
 
 export function findClineSessions(): string | null {
+  const all = findAllClineSessions();
+  return all.length > 0 ? all[0] : null;
+}
+
+export function findAllClineSessions(): string[] {
   const candidates = [
     join(homedir(), ".cline", "data", "sessions"),
     join(
@@ -24,15 +29,15 @@ export function findClineSessions(): string | null {
   for (const dir of candidates) {
     if (existsSync(dir) && statSync(dir).isDirectory()) {
       try {
-        const files = readdirSync(dir)
+        return readdirSync(dir)
           .filter((f) => f.endsWith(".json") || f.endsWith(".jsonl"))
           .map((f) => ({ name: f, path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
-          .sort((a, b) => b.mtime - a.mtime);
-        if (files.length > 0) return files[0].path;
+          .sort((a, b) => b.mtime - a.mtime)
+          .map((f) => f.path);
       } catch {}
     }
   }
-  return null;
+  return [];
 }
 
 export interface ClineMessage {

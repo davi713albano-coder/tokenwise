@@ -1,8 +1,8 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, resolve, basename, dirname } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { countTokens, countLines } from "../shared/counter.js";
-import type { FileAuditResult, AuditFlag } from "./types.js";
+import YAML from "yaml";
 
 const YAML_FRONTMATTER_RE = /^---\s*\n([\s\S]*?)\n---\s*\n/;
 
@@ -17,7 +17,6 @@ function parseFrontmatter(content: string): {
   const match = content.match(YAML_FRONTMATTER_RE);
   if (!match) return { frontmatter: null, body: content };
   try {
-    const YAML = require("yaml");
     const parsed = YAML.parse(match[1]) as RuleFrontmatter;
     return { frontmatter: parsed, body: content.slice(match[0].length) };
   } catch {
@@ -119,7 +118,7 @@ export function findInstructionFiles(projectDir: string): ScannerFile[] {
       candidates.push({
         path: join(clineRulesDir, f),
         relPath: `.clinerules/${f}`,
-        loadFrequency: "conditional",
+        loadFrequency: "every_message",
       });
     }
   }

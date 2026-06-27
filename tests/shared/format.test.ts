@@ -37,8 +37,12 @@ describe("formatCost", () => {
     expect(formatCost(12.34)).toBe("$12.34");
   });
 
-  it("returns $0.00 for tiny amounts", () => {
-    expect(formatCost(0.005)).toBe("$0.00");
+  it("returns $0.00 for negligible amounts", () => {
+    expect(formatCost(0.004)).toBe("$0.00");
+  });
+
+  it("rounds up small non-zero amounts", () => {
+    expect(formatCost(0.005)).toBe("$0.01");
   });
 });
 

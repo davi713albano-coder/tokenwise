@@ -6,10 +6,11 @@ import type { Database as SqlJsDatabase } from "sql.js";
 import { countTokens } from "../shared/counter.js";
 import type { UniversalTokenBreakdown, UniversalSessionInfo } from "./types.js";
 
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
-
 export function findGooseDb(): string | null {
+  const XDG_DATA_HOME = process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
+  const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
   const candidates = [
+    join(XDG_DATA_HOME, "goose", "sessions.db"),
     join(XDG_CONFIG_HOME, "goose", "sessions.db"),
     join(homedir(), ".local", "share", "goose", "sessions.db"),
     join(homedir(), ".config", "goose", "sessions.db"),
@@ -74,6 +75,44 @@ export async function getGooseLatestSession(dbPath: string): Promise<UniversalSe
     };
   } catch {
     return null;
+  } finally {
+    db.close();
+  }
+}
+
+export async function getAllGooseSessions(dbPath: string): Promise<UniversalSessionInfo[]> {
+  const db = await openGooseDb(dbPath);
+  if (!db) return [];
+
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+    const tableNames = tables.length > 0 ? tables[0].values.flat().map(String) : [];
+
+    let rows;
+    if (tableNames.includes("session")) {
+      rows = db.exec(`SELECT * FROM session ORDER BY rowid DESC`);
+    } else if (tableNames.includes("sessions")) {
+      rows = db.exec(`SELECT * FROM sessions ORDER BY rowid DESC`);
+    } else {
+      return [];
+    }
+
+    if (!rows.length || !rows[0].values.length) return [];
+
+    const cols = rows[0].columns;
+    return rows[0].values.map((val) => {
+      const row = Object.fromEntries(cols.map((c: string, i: number) => [c, (val as unknown[])[i]])) as Record<string, unknown>;
+      return {
+        id: String(row.id || row.session_id || row.uuid || "unknown"),
+        title: String(row.title || row.name || row.description || "Goose Session"),
+        model: String(row.model || row.provider || "unknown"),
+        cost: Number(row.cost || row.total_cost || 0),
+        timeCreated: Number(row.created_at || row.timestamp || row.start_time || 0),
+        agentName: "goose",
+      };
+    });
+  } catch {
+    return [];
   } finally {
     db.close();
   }

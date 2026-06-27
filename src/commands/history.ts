@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { getPricing, estimateMonthly } from "../shared/pricing.js";
+import { getPricing, estimateMonthly, estimateCost } from "../shared/pricing.js";
 import { formatNumber, formatCost, formatPercent } from "../shared/format.js";
 import { findClaudeCodeSessions, parseSession, analyzeTokens } from "../scan/claude-code.js";
 import { findOpenCodeDb, getLatestSession, analyzeOpenCodeSession } from "../scan/opencode.js";
@@ -27,7 +27,7 @@ function formatDate(ts: number): string {
   return `${d.getFullYear()}-${month}-${day}`;
 }
 
-async function getAllSessionEntries(sinceDays: number): Promise<DayEntry[]> {
+async function getAllSessionEntries(sinceDays: number, model: string): Promise<DayEntry[]> {
   const cutoff = Date.now() - sinceDays * 24 * 60 * 60 * 1000;
   const entries: DayEntry[] = [];
   const seen = new Map<string, DayEntry>();
@@ -41,8 +41,14 @@ async function getAllSessionEntries(sinceDays: number): Promise<DayEntry[]> {
       const session = parseSession(sessionPath);
       const breakdown = analyzeTokens(session);
       const date = formatDate(stat.mtimeMs);
-      const pricing = getPricing("sonnet");
-      const cost = breakdown.totalInput * pricing.inputPerMillion / 1_000_000;
+      const pricing = getPricing(model);
+      const costResult = estimateCost({
+        input: breakdown.totalInput,
+        output: breakdown.totalOutput,
+        cacheRead: breakdown.cacheRead,
+        cacheWrite: breakdown.cacheCreation || 0,
+      }, model);
+      const cost = costResult.totalCost;
 
       const existing = seen.get(date);
       if (existing) {
@@ -101,7 +107,7 @@ export async function runHistory(options: {
 }) {
   const days = options.days || 14;
   const pricing = getPricing(options.model);
-  const entries = await getAllSessionEntries(days);
+  const entries = await getAllSessionEntries(days, options.model);
 
   if (entries.length === 0) {
     console.log(chalk.yellow("  No session data found for the specified period."));

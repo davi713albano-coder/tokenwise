@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import { homedir } from "node:os";
 import { countTokens } from "../shared/counter.js";
 import type { UniversalTokenBreakdown } from "./types.js";
@@ -13,6 +13,13 @@ export function findAiderHistory(projectDir: string): string | null {
     if (existsSync(p)) return p;
   }
   return null;
+}
+
+export function findAllAiderHistory(projectDir: string): string[] {
+  return [
+    join(projectDir, ".aider.chat.history.md"),
+    join(homedir(), ".aider.chat.history.md"),
+  ].filter((p) => existsSync(p));
 }
 
 export function findAiderConventions(projectDir: string): string[] {

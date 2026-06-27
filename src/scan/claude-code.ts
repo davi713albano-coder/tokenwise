@@ -1,5 +1,5 @@
-import { readdirSync, statSync, readFileSync } from "node:fs";
-import { join, basename } from "node:path";
+import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { homedir } from "node:os";
 import { countTokens } from "../shared/counter.js";
 
@@ -49,7 +49,7 @@ function findClaudeCodeProjectsDir(): string {
 
 export function findClaudeCodeSessions(): string[] {
   const projectsDir = findClaudeCodeProjectsDir();
-  if (!statSync(projectsDir)?.isDirectory()) return [];
+  if (!existsSync(projectsDir) || !statSync(projectsDir).isDirectory()) return [];
 
   const jsonlFiles: string[] = [];
   try {
@@ -167,5 +167,5 @@ function countFileTokensApprox(_filePath: string): number {
 
 export function formatSessionPath(filePath: string): string {
   const projectsDir = findClaudeCodeProjectsDir();
-  return filePath.replace(projectsDir, "~/.claude/projects");
+  return filePath.split(projectsDir).join("~/.claude/projects");
 }

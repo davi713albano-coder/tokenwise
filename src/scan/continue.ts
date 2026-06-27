@@ -1,26 +1,34 @@
 import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { countTokens } from "../shared/counter.js";
 import type { UniversalTokenBreakdown } from "./types.js";
 
 export function findContinueSessions(): string | null {
+  const all = findAllContinueSessions();
+  return all.length > 0 ? all[0] : null;
+}
+
+export function findAllContinueSessions(): string[] {
   const candidates = [
     join(".continue", "sessions"),
     join(".continue", "dev", "sessions"),
+    join(homedir(), ".continue", "sessions"),
+    join(homedir(), ".continue", "dev", "sessions"),
   ];
 
   for (const dir of candidates) {
     if (existsSync(dir) && statSync(dir).isDirectory()) {
       try {
-        const files = readdirSync(dir)
+        return readdirSync(dir)
           .filter((f) => f.endsWith(".json"))
           .map((f) => ({ name: f, path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
-          .sort((a, b) => b.mtime - a.mtime);
-        if (files.length > 0) return files[0].path;
+          .sort((a, b) => b.mtime - a.mtime)
+          .map((f) => f.path);
       } catch {}
     }
   }
-  return null;
+  return [];
 }
 
 export interface ContinueMessage {
